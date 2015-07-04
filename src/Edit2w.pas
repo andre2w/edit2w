@@ -1,0 +1,198 @@
+unit Edit2w;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, Vcl.Controls, Vcl.StdCtrls, Data.DB, Data.SqlExpr, Data.DBXFirebird,
+  Datasnap.DBClient, Datasnap.Provider,Data.DBXCommon, MidasLib;
+
+type
+  TStringArray = array of string;
+  TEdit2w = class(TEdit)
+  private
+    FADBConnection : TSQLConnection;
+    FATable        : string;
+    FAOpenScreen   : string;
+    FAFieldsToShow : string;
+    FAFilter       : string;
+    FResult        : string;
+    FText          : string;
+    FAFieldToSearch: string;
+    FAFieldToResult: string;
+
+    { Private declarations }
+    function removeSemicolon(AText, ADelimiter: string):TStringArray;
+    function clearInput(AText:string):string;
+  protected
+    { Protected declarations }
+    procedure KeyPress(var Key: Char); override;
+    procedure ComponentSetup;
+    function checkForLetters(text:string):Boolean;
+    function prepareSearchFields(Text:string):string;
+  public
+    { Public declarations }
+    procedure Search;
+  published
+    { Published declarations }
+    property ADBConnection:TSQLConnection  read FADBConnection write FADBConnection;
+    property ATable: string read FATable write FATable;
+    property AFieldsToShow: string read FAFieldsToShow write FAFieldsToShow;
+    property AOpenScreen: string read FAOpenScreen write FAOpenScreen;
+    property Result: string read FResult write FResult;
+    property AFilter: string read FAFilter write FAFilter;
+    property AFieldToSearch : string read FAFieldToSearch write FAFieldToSearch;
+    property AFieldToResult : string read FAFieldToResult write FAFieldToResult;
+  end;
+
+procedure Register;
+
+implementation
+
+uses
+ uFrmSearch;
+
+var
+ Qry:TSqlQuery;
+ like:Boolean;
+ FieldsToSearch: TStringArray;
+
+procedure Register;
+begin
+  RegisterComponents('Standard', [TEdit2w]);
+end;
+
+{ TEdit2w }
+
+procedure TEdit2w.Search;
+var
+ Query : string;
+begin
+ FText  := clearInput(FText);
+ FieldsToSearch := removeSemicolon(FAFieldToSearch,';');
+ AFieldsToShow := prepareSearchFields(AFieldsToShow);
+
+ Query := 'select '+ AFieldsToShow +' from '+ FATable;
+ if FText <> EmptyStr then
+ BEGIN
+   if like then
+    Query := Query + ' where '+ FieldsToSearch[1]+ ' like ' + QuotedStr('%'+FText+'%')
+   else
+    Query := Query + ' where '+ FieldsToSearch[0]+ ' = ' + FText;
+ END;
+
+ with Qry,sql do
+ begin
+   Clear;
+   Close;
+   Add(Query);
+   Open;
+ end;
+
+ if Qry.RecordCount > 1 then
+ begin
+   FrmSearch := TFrmSearch.Create(Self);
+   FrmSearch. configureQuery(Query,FADBConnection);
+   FrmSearch.Table := FATable;
+   FrmSearch.FieldsToShow := AFieldsToShow;
+   FrmSearch.like := like;
+   FrmSearch.FieldsToSearch1 := FieldsToSearch[1];
+   FrmSearch.FieldsToSearch2 := FieldsToSearch[0];
+
+   if  FrmSearch.Showmodal = mrOk then
+   begin
+    Self.Text := FrmSearch.cdsSearch.FieldByName(FieldsToSearch[0]).AsString + ' - ' + FrmSearch.cdsSearch.FieldByName(FAFieldToResult).AsString;
+    FResult   := FrmSearch.cdsSearch.FieldByName(FAFieldToResult).AsString;
+   end;
+ end
+ else
+ begin
+  FResult   := Qry.FieldByName(FAFieldToResult).AsString;
+  Self.Text := Qry.FieldByName(FieldsToSearch[0]).AsString + ' - '+ Qry.FieldByName(FAFieldToResult).AsString;
+ end;
+end;
+
+function TEdit2w.checkForLetters(text: string): Boolean;
+const
+  letters = ['A'..'Z', 'a'..'z'];
+var
+  I: Integer;
+begin
+ result := False;
+ for I := 0 to Pred(Length(text)) do
+ begin
+   if text[i] in letters  then
+    result := True;
+ end;
+end;
+
+function TEdit2w.clearInput(AText:string):string;
+begin
+ Result :=  StringReplace(AText, ';', '', [rfReplaceAll, rfIgnoreCase]);
+end;
+
+procedure TEdit2w.ComponentSetup;
+begin
+ Qry := TSqlQuery.Create(SELF);
+ Qry.SQLConnection := FADBConnection;
+ FText := Self.Text;
+ like := checkForLetters(FText);
+end;
+
+procedure TEdit2w.KeyPress(var Key: Char);
+begin
+  inherited;
+  if key = #13 then
+  begin
+   ComponentSetup;
+   Search;
+  end;
+end;
+
+function TEdit2w.prepareSearchFields(Text:string): string;
+var
+ Search:TStringArray;
+  I: Integer;
+begin
+  Search := removeSemicolon(Text,';');
+  Result := '';
+  for I := 0 to Pred(Length(Search)) do
+  begin
+   if Search[i] <> EmptyStr then
+   begin
+     if I = Pred(Length(Search)) then
+       Result := Result + Search[i]
+     else
+       Result := Result + Search[i]+ ', ';
+   end;
+
+  end;
+end;
+
+function TEdit2w.removeSemicolon(AText, ADelimiter: string):TStringArray;
+var
+  txtFinal: TStringArray;
+  pospv,j,i : Integer;
+begin
+ pospv := 1;
+ i := 0;
+ SetLength(txtFinal,i + 1);
+ repeat
+  pospv := 0;
+  pospv := Pos(ADelimiter,AText,1);
+
+  if pospv > 0 then
+    txtFinal[i] := Copy(AText,0,pospv - 1) // If you want the semicolon you need to remove the - 1 from the copy.
+  else
+    txtFinal[i] := Copy(AText,0,length(AText));
+
+  AText := Copy(AText,pospv+1,Length(AText));
+
+  Inc(i);
+  SetLength(txtFinal,i + 1);
+ until (pospv = 0);
+
+ SetLength(txtFinal,Pred(Length(txtFinal)));
+ Result :=  txtfinal;
+end;
+
+end.
