@@ -121,7 +121,7 @@ begin
  end;
 
  if Assigned(FOnAfterSearch) then
-  FOnAfterSearch(Self);
+  SetFOnAfterSearch(Self);
 
 end;
 

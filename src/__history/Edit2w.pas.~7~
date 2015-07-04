@@ -25,7 +25,7 @@ type
     { Private declarations }
     function removeSemicolon(AText, ADelimiter: string):TStringArray;
     function clearInput(AText:string):string;
-    procedure SetFOnAfterSearch(const Value: TNotifyEvent);
+//    procedure SetFOnAfterSearch(const Value: TNotifyEvent);
 
   protected
     { Protected declarations }
@@ -46,7 +46,7 @@ type
     property AFilter: string read FAFilter write FAFilter;
     property AFieldToSearch : string read FAFieldToSearch write FAFieldToSearch;
     property AFieldToResult : string read FAFieldToResult write FAFieldToResult;
-    property OnAfterSearch: TNotifyEvent read FOnAfterSearch write SetFOnAfterSearch;
+//    property OnAfterSearch: TNotifyEvent read FOnAfterSearch write SetFOnAfterSearch;
   end;
 
 procedure Register;
@@ -119,16 +119,12 @@ begin
   FResult   := Qry.FieldByName(FAFieldToResult).AsString;
   Self.Text := Qry.FieldByName(FieldsToSearch[0]).AsString + ' - '+ Qry.FieldByName(FAFieldToResult).AsString;
  end;
-
- if Assigned(FOnAfterSearch) then
-  FOnAfterSearch(Self);
-
 end;
 
-procedure TEdit2w.SetFOnAfterSearch(const Value: TNotifyEvent);
+{procedure TEdit2w.SetFOnAfterSearch(const Value: TNotifyEvent);
 begin
   FOnAfterSearch := Value;
-end;
+end;}
 
 function TEdit2w.checkForLetters(text: string): Boolean;
 const

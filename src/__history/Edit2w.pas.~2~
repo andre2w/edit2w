@@ -3,7 +3,7 @@ unit Edit2w;
 interface
 
 uses
-  System.SysUtils,System.Classes, Vcl.Controls, Vcl.StdCtrls, Data.DB, Data.SqlExpr, Data.DBXFirebird,
+  System.SysUtils, System.Classes, Vcl.Controls, Vcl.StdCtrls, Data.DB, Data.SqlExpr, Data.DBXFirebird,
   Datasnap.DBClient, Datasnap.Provider,Data.DBXCommon, MidasLib;
 
 type
@@ -19,14 +19,12 @@ type
     FText          : string;
     FAFieldToSearch: string;
     FAFieldToResult: string;
-    FOnAfterSearch: TNotifyEvent;
-
 
     { Private declarations }
     function removeSemicolon(AText, ADelimiter: string):TStringArray;
     function clearInput(AText:string):string;
+    function OnAfterSearch: TNotifyEvent;
     procedure SetFOnAfterSearch(const Value: TNotifyEvent);
-
   protected
     { Protected declarations }
     procedure KeyPress(var Key: Char); override;
@@ -46,7 +44,7 @@ type
     property AFilter: string read FAFilter write FAFilter;
     property AFieldToSearch : string read FAFieldToSearch write FAFieldToSearch;
     property AFieldToResult : string read FAFieldToResult write FAFieldToResult;
-    property OnAfterSearch: TNotifyEvent read FOnAfterSearch write SetFOnAfterSearch;
+    property OnAfterSearch: TNotifyEvent read OnAfterSearch write SetFOnAfterSearch;
   end;
 
 procedure Register;
@@ -54,7 +52,7 @@ procedure Register;
 implementation
 
 uses
- uFrmSearch ;
+ uFrmSearch;
 
 var
  Qry:TSqlQuery;
@@ -72,7 +70,6 @@ procedure TEdit2w.Search;
 var
  Query : string;
 begin
- ComponentSetup;
  FText  := clearInput(FText);
  FieldsToSearch := removeSemicolon(FAFieldToSearch,';');
  AFieldsToShow := prepareSearchFields(AFieldsToShow);
@@ -119,15 +116,11 @@ begin
   FResult   := Qry.FieldByName(FAFieldToResult).AsString;
   Self.Text := Qry.FieldByName(FieldsToSearch[0]).AsString + ' - '+ Qry.FieldByName(FAFieldToResult).AsString;
  end;
-
- if Assigned(FOnAfterSearch) then
-  FOnAfterSearch(Self);
-
 end;
 
 procedure TEdit2w.SetFOnAfterSearch(const Value: TNotifyEvent);
 begin
-  FOnAfterSearch := Value;
+ SetFOnAfterSearch := Value;
 end;
 
 function TEdit2w.checkForLetters(text: string): Boolean;
@@ -162,8 +155,14 @@ begin
   inherited;
   if key = #13 then
   begin
+   ComponentSetup;
    Search;
   end;
+end;
+
+function TEdit2w.OnAfterSearch: TNotifyEvent;
+begin
+   := Value;
 end;
 
 function TEdit2w.prepareSearchFields(Text:string): string;

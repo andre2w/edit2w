@@ -119,10 +119,6 @@ begin
   FResult   := Qry.FieldByName(FAFieldToResult).AsString;
   Self.Text := Qry.FieldByName(FieldsToSearch[0]).AsString + ' - '+ Qry.FieldByName(FAFieldToResult).AsString;
  end;
-
- if Assigned(FOnAfterSearch) then
-  FOnAfterSearch(Self);
-
 end;
 
 procedure TEdit2w.SetFOnAfterSearch(const Value: TNotifyEvent);
