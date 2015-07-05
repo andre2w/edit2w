@@ -13,6 +13,7 @@ object FrmSearch: TFrmSearch
   Font.Name = 'Tahoma'
   Font.Style = []
   OldCreateOrder = False
+  Position = poMainFormCenter
   OnShow = FormShow
   PixelsPerInch = 96
   TextHeight = 13
@@ -38,7 +39,7 @@ object FrmSearch: TFrmSearch
     end
     object btnSearch: TBitBtn
       Left = 472
-      Top = 3
+      Top = 2
       Width = 134
       Height = 35
       Action = Action1
@@ -109,7 +110,6 @@ object FrmSearch: TFrmSearch
     Width = 609
     Height = 309
     Align = alClient
-    DataSource = dsSearch
     Options = [dgTitles, dgIndicator, dgColumnResize, dgColLines, dgRowLines, dgTabs, dgRowSelect, dgConfirmDelete, dgCancelOnExit, dgTitleClick, dgTitleHotTrack]
     TabOrder = 1
     TitleFont.Charset = DEFAULT_CHARSET
@@ -119,9 +119,9 @@ object FrmSearch: TFrmSearch
     TitleFont.Style = []
     OnKeyPress = GridSearchKeyPress
   end
-  object dsSearch: TDataSource
+  object dsDBX: TDataSource
     DataSet = cdsSearch
-    Left = 544
+    Left = 536
     Top = 304
   end
   object cdsSearch: TClientDataSet
@@ -150,5 +150,14 @@ object FrmSearch: TFrmSearch
       ShortCut = 112
       OnExecute = Action1Execute
     end
+  end
+  object QrySearch: TFDQuery
+    Left = 472
+    Top = 256
+  end
+  object dsFDC: TDataSource
+    DataSet = QrySearch
+    Left = 536
+    Top = 256
   end
 end

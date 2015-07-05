@@ -6,34 +6,41 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.Grids, Vcl.DBGrids, Vcl.StdCtrls,
   Vcl.Buttons, Vcl.ExtCtrls, Data.DB, Datasnap.DBClient, Datasnap.Provider,
-  Data.SqlExpr, Data.FMTBcd, System.Actions, Vcl.ActnList;
+  Data.SqlExpr, Data.FMTBcd, System.Actions, Vcl.ActnList,uUtil,
+  FireDAC.Stan.Intf, FireDAC.Stan.Option, FireDAC.Stan.Param,
+  FireDAC.Stan.Error, FireDAC.DatS, FireDAC.Phys.Intf, FireDAC.DApt.Intf,
+  FireDAC.Stan.Async, FireDAC.DApt, FireDAC.Comp.DataSet, FireDAC.Comp.Client;
 
 type
-  TStringArray = array of string;
+
   TFrmSearch = class(TForm)
     Panel1: TPanel;
     edSearch: TLabeledEdit;
     btnSearch: TBitBtn;
     GridSearch: TDBGrid;
-    dsSearch: TDataSource;
+    dsDBX: TDataSource;
     cdsSearch: TClientDataSet;
     dspSearch: TDataSetProvider;
     sdsSearch: TSQLDataSet;
     ActionList1: TActionList;
     Action1: TAction;
-    procedure configureQuery(Stmt:string;DBConnection:TSQLConnection);
+    QrySearch: TFDQuery;
+    dsFDC: TDataSource;
+    procedure configureQueryDBX(Stmt:string;DBConnection:TCustomConnection);
+    procedure configureQueryFDC(Stmt:string;DBConnection:TCustomConnection);
     procedure GridSearchKeyPress(Sender: TObject; var Key: Char);
     procedure FormShow(Sender: TObject);
     procedure Action1Execute(Sender: TObject);
   private
     { Private declarations }
-    function removeSemicolon(AText, ADelimiter: string):TStringArray;
+    procedure searchDBX;
     procedure search;
-    function checkForLetters(text:string):Boolean;
+    procedure searchFDC;
   public
     { Public declarations }
-    Table,FieldsToShow,FieldsToSearch1,FieldsToSearch2:string;
+    Table,FieldsToShow,FieldsToSearch1,FieldsToSearch2,ConnectionType:string;
     like:Boolean;
+    procedure configureQuery(Stmt,ConType:string;DBConnection:TCustomConnection);
   end;
 
 var
@@ -50,26 +57,34 @@ begin
  Self.search;
 end;
 
-function TFrmSearch.checkForLetters(text: string): Boolean;
-const
-  letters = ['A'..'Z', 'a'..'z'];
-var
-  I: Integer;
+procedure TFrmSearch.configureQuery(Stmt, ConType: string;
+  DBConnection: TCustomConnection);
 begin
- result := False;
- for I := 0 to Pred(Length(text)) do
+ ConnectionType := ConType;
+ if ConnectionType = 'DBX' then
+  configureQueryDBX(Stmt,DBConnection)
+ else
+ if ConnectionType = 'FDC' then
  begin
-   if text[i] in letters  then
-    result := True;
+  configureQueryFDC(Stmt,DBConnection);
  end;
-
 end;
 
-procedure TFrmSearch.configureQuery(Stmt: string; DBConnection: TSQLConnection);
+procedure TFrmSearch.configureQueryDBX(Stmt: string; DBConnection: TCustomConnection);
 begin
- sdsSearch.SQLConnection := DBConnection;
+ GridSearch.DataSource := dsDBX;
+ sdsSearch.SQLConnection := TSQLConnection(DBConnection);
  cdsSearch.CommandText := Stmt;
  cdsSearch.Open;
+end;
+
+procedure TFrmSearch.configureQueryFDC(Stmt: string;
+  DBConnection: TCustomConnection);
+begin
+ GridSearch.DataSource := dsFDC;
+ QrySearch.Connection := TFDConnection(DBConnection);
+ QrySearch.SQL.Add(Stmt);
+ QrySearch.Open;
 end;
 
 procedure TFrmSearch.FormShow(Sender: TObject);
@@ -83,33 +98,20 @@ begin
   ModalResult := mrOk;
 end;
 
-function TFrmSearch.removeSemicolon(AText, ADelimiter: string): TStringArray;
-var
-  txtFinal: TStringArray;
-  pospv,j,i : Integer;
+procedure TFrmSearch.search;
 begin
- pospv := 1;
- i := 0;
- SetLength(txtFinal,i + 1);
- repeat
-  pospv := 0;
-  pospv := Pos(ADelimiter,AText,1);
-
-  if pospv > 0 then
-    txtFinal[i] := Copy(AText,0,pospv - 1) // If you want the semicolon you need to remove the - 1 from the copy.
+  if ConnectionType = 'DBX' then
+  begin
+    Self.searchDBX;
+  end
   else
-    txtFinal[i] := Copy(AText,0,length(AText));
-
-  AText := Copy(AText,pospv+1,Length(AText));
-
-  Inc(i);
-  SetLength(txtFinal,i + 1);
- until (pospv = 0);
- SetLength(txtFinal,Pred(Length(txtFinal)));
- Result :=  txtfinal;
+  if ConnectionType = 'FDC' then
+  begin
+    Self.searchFDC;
+  end;
 end;
 
-procedure TFrmSearch.search;
+procedure TFrmSearch.searchDBX;
 var
  Query: string;
 begin
@@ -126,6 +128,29 @@ begin
  cdsSearch.Close;
  cdsSearch.CommandText := Query;
  cdsSearch.Open;
+end;
+
+procedure TFrmSearch.searchFDC;
+var
+ Query: string;
+begin
+ like := checkForLetters(edSearch.Text);
+ Query := 'select '+ FieldsToShow +' from '+ Table;
+ if edSearch.Text <> EmptyStr then
+ begin
+   if like then
+    Query := Query + ' where '+ FieldsToSearch1 + ' like ' + QuotedStr('%'+edSearch.Text+'%')
+   else
+    Query := Query + ' where '+ FieldsToSearch2 + ' = ' + edSearch.Text;
+ end;
+
+ with QrySearch do
+ begin
+   SQL.Clear;
+   Close;
+   SQL.Add(Query);
+   Open;
+ end;
 end;
 
 end.

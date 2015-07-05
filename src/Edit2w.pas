@@ -4,13 +4,12 @@ interface
 
 uses
   System.SysUtils,System.Classes, Vcl.Controls, Vcl.StdCtrls, Data.DB, Data.SqlExpr, Data.DBXFirebird,
-  Datasnap.DBClient, Datasnap.Provider,Data.DBXCommon, MidasLib;
+  Datasnap.DBClient, Datasnap.Provider,Data.DBXCommon, MidasLib, uUtil, uDBXSearch,uFDCSearch;
 
 type
-  TStringArray = array of string;
   TEdit2w = class(TEdit)
   private
-    FADBConnection : TSQLConnection;
+    FADBConnection : TCustomConnection;
     FATable        : string;
     FAOpenScreen   : string;
     FAFieldsToShow : string;
@@ -19,26 +18,24 @@ type
     FText          : string;
     FAFieldToSearch: string;
     FAFieldToResult: string;
-    FOnAfterSearch: TNotifyEvent;
-
+    FOnAfterSearch : TNotifyEvent;
+    FAConnectionType: string;
 
     { Private declarations }
-    function removeSemicolon(AText, ADelimiter: string):TStringArray;
-    function clearInput(AText:string):string;
     procedure SetFOnAfterSearch(const Value: TNotifyEvent);
 
   protected
     { Protected declarations }
     procedure KeyPress(var Key: Char); override;
-    procedure ComponentSetup;
-    function checkForLetters(text:string):Boolean;
-    function prepareSearchFields(Text:string):string;
+    procedure validateConfiguration;
+    procedure SearchDBX;
+    procedure SearchFDC;
   public
     { Public declarations }
     procedure Search;
   published
     { Published declarations }
-    property ADBConnection:TSQLConnection  read FADBConnection write FADBConnection;
+    property ADBConnection:TCustomConnection  read FADBConnection write FADBConnection;
     property ATable: string read FATable write FATable;
     property AFieldsToShow: string read FAFieldsToShow write FAFieldsToShow;
     property AOpenScreen: string read FAOpenScreen write FAOpenScreen;
@@ -46,7 +43,9 @@ type
     property AFilter: string read FAFilter write FAFilter;
     property AFieldToSearch : string read FAFieldToSearch write FAFieldToSearch;
     property AFieldToResult : string read FAFieldToResult write FAFieldToResult;
+    property AConnectionType: string read FAConnectionType write FAConnectionType;
     property OnAfterSearch: TNotifyEvent read FOnAfterSearch write SetFOnAfterSearch;
+
   end;
 
 procedure Register;
@@ -54,12 +53,12 @@ procedure Register;
 implementation
 
 uses
- uFrmSearch ;
+ uFrmSearch, Vcl.Dialogs ;
 
 var
  Qry:TSqlQuery;
  like:Boolean;
- FieldsToSearch: TStringArray;
+ FieldsToSearch: uUtil.TStringArray;
 
 procedure Register;
 begin
@@ -69,55 +68,15 @@ end;
 { TEdit2w }
 
 procedure TEdit2w.Search;
-var
- Query : string;
 begin
- ComponentSetup;
- FText  := clearInput(FText);
- FieldsToSearch := removeSemicolon(FAFieldToSearch,';');
- AFieldsToShow := prepareSearchFields(AFieldsToShow);
-
- Query := 'select '+ AFieldsToShow +' from '+ FATable + ' where 1=1';
- if FText <> EmptyStr then
- BEGIN
-   if like then
-    Query := Query + ' and '+ FieldsToSearch[1]+ ' like ' + QuotedStr('%'+FText+'%')
-   else
-    Query := Query + ' and '+ FieldsToSearch[0]+ ' = ' + FText;
- END;
- if FAFilter <> EmptyStr then
+ if FAConnectionType = 'DBX' then
  begin
-   Query := Query + ' and ' + FAFilter;
- end;
-
- with Qry,sql do
- begin
-   Clear;
-   Close;
-   Add(Query);
-   Open;
- end;
-
- if Qry.RecordCount > 1 then
- begin
-   FrmSearch := TFrmSearch.Create(Self);
-   FrmSearch. configureQuery(Query,FADBConnection);
-   FrmSearch.Table := FATable;
-   FrmSearch.FieldsToShow := AFieldsToShow;
-   FrmSearch.like := like;
-   FrmSearch.FieldsToSearch1 := FieldsToSearch[1];
-   FrmSearch.FieldsToSearch2 := FieldsToSearch[0];
-
-   if  FrmSearch.Showmodal = mrOk then
-   begin
-    Self.Text := FrmSearch.cdsSearch.FieldByName(FieldsToSearch[0]).AsString + ' - ' + FrmSearch.cdsSearch.FieldByName(FAFieldToResult).AsString;
-    FResult   := FrmSearch.cdsSearch.FieldByName(FAFieldToResult).AsString;
-   end;
+  SearchDBX;
  end
  else
+ if FAConnectionType = 'FDC' then
  begin
-  FResult   := Qry.FieldByName(FAFieldToResult).AsString;
-  Self.Text := Qry.FieldByName(FieldsToSearch[0]).AsString + ' - '+ Qry.FieldByName(FAFieldToResult).AsString;
+  SearchFDC;
  end;
 
  if Assigned(FOnAfterSearch) then
@@ -130,31 +89,71 @@ begin
   FOnAfterSearch := Value;
 end;
 
-function TEdit2w.checkForLetters(text: string): Boolean;
-const
-  letters = ['A'..'Z', 'a'..'z'];
+procedure TEdit2w.validateConfiguration;
+begin
+  if not Assigned(FADBConnection) then
+  begin
+    MessageDlg('Invalid Configuration: Invalid Database Connection!'+ #13 +'Please check if ADBConnection is filled correctly',mtError,[mbOK],0);
+    Abort;
+  end;
+
+  if FATable = EmptyStr then
+  begin
+    MessageDlg('Invalid Configuration: Table not Assigned!' + #13 +'Please check if ATable is filled correctly',mtError,[mbOK],0);
+    Abort;
+  end;
+
+  if FAFieldToSearch = EmptyStr then
+  begin
+    MessageDlg('Invalid Configuration: Fields to Search not Assigned!' + #13 +'Please check if AFieldToSearch is filled correctly',mtError,[mbOK],0);
+    Abort;
+  end;
+
+  if FAFieldToResult = EmptyStr then
+  begin
+    MessageDlg('Invalid Configuration: Fields to Result not Assigned!' + #13 +'Please check if AFieldToResult is filled correctly',mtError,[mbOK],0);
+    Abort;
+  end;
+end;
+
+
+
+procedure TEdit2w.SearchDBX;
 var
-  I: Integer;
+  uResult : TSearchResult;
 begin
- result := False;
- for I := 0 to Pred(Length(text)) do
- begin
-   if text[i] in letters  then
-    result := True;
- end;
+   FText := Self.Text;
+   loadFieldsDBX(FADBConnection,
+                 FATable,
+                 FAOpenScreen,
+                 FAFieldsToShow,
+                 FAFilter,
+                 FText,
+                 FAFieldToSearch,
+                 FAFieldToResult);
+   componentSetupDBX;
+   uResult   := searchDBExpress;
+   Self.Text := uResult.Text;
+   FResult   := uResult.ResultField;
 end;
 
-function TEdit2w.clearInput(AText:string):string;
+procedure TEdit2w.SearchFDC;
+var
+  uResult : TSearchResult;
 begin
- Result :=  StringReplace(AText, ';', '', [rfReplaceAll, rfIgnoreCase]);
-end;
-
-procedure TEdit2w.ComponentSetup;
-begin
- Qry := TSqlQuery.Create(SELF);
- Qry.SQLConnection := FADBConnection;
- FText := Self.Text;
- like := checkForLetters(FText);
+   FText := Self.Text;
+   loadFieldsFDC(FADBConnection,
+                 FATable,
+                 FAOpenScreen,
+                 FAFieldsToShow,
+                 FAFilter,
+                 FText,
+                 FAFieldToSearch,
+                 FAFieldToResult);
+   componentSetupFDC;
+   uResult   := searchFireDAC;
+   Self.Text := uResult.Text;
+   FResult   := uResult.ResultField;
 end;
 
 procedure TEdit2w.KeyPress(var Key: Char);
@@ -162,55 +161,10 @@ begin
   inherited;
   if key = #13 then
   begin
+   validateConfiguration;
    Search;
   end;
 end;
 
-function TEdit2w.prepareSearchFields(Text:string): string;
-var
- Search:TStringArray;
-  I: Integer;
-begin
-  Search := removeSemicolon(Text,';');
-  Result := '';
-  for I := 0 to Pred(Length(Search)) do
-  begin
-   if Search[i] <> EmptyStr then
-   begin
-     if I = Pred(Length(Search)) then
-       Result := Result + Search[i]
-     else
-       Result := Result + Search[i]+ ', ';
-   end;
-
-  end;
-end;
-
-function TEdit2w.removeSemicolon(AText, ADelimiter: string):TStringArray;
-var
-  txtFinal: TStringArray;
-  pospv,j,i : Integer;
-begin
- pospv := 1;
- i := 0;
- SetLength(txtFinal,i + 1);
- repeat
-  pospv := 0;
-  pospv := Pos(ADelimiter,AText,1);
-
-  if pospv > 0 then
-    txtFinal[i] := Copy(AText,0,pospv - 1) // If you want the semicolon you need to remove the - 1 from the copy.
-  else
-    txtFinal[i] := Copy(AText,0,length(AText));
-
-  AText := Copy(AText,pospv+1,Length(AText));
-
-  Inc(i);
-  SetLength(txtFinal,i + 1);
- until (pospv = 0);
-
- SetLength(txtFinal,Pred(Length(txtFinal)));
- Result :=  txtfinal;
-end;
 
 end.
