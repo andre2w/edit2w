@@ -12,7 +12,7 @@ uses
 
  procedure loadFieldsFDC(DBConnection : TCustomConnection;
                       Table,OpenScreen,FieldsToShow:string;
-                      Filter,Text,FieldToSearch,FieldToResult:string);
+                      Filter,Text,FieldToSearch,FieldToResult,Language:string);
  procedure componentSetupFDC;
  function searchFireDAC:uUtil.TSearchResult;
 
@@ -34,8 +34,9 @@ var
  Qry           : TFDQuery;
  FieldsToSearch: uUtil.TStringArray;
  Like          : Boolean;
+ ALanguage     : string;
 
-procedure loadFieldsFDC(DBConnection : TCustomConnection;Table,OpenScreen,FieldsToShow,Filter,Text,FieldToSearch,FieldToResult:string);
+procedure loadFieldsFDC(DBConnection : TCustomConnection;Table,OpenScreen,FieldsToShow,Filter,Text,FieldToSearch,FieldToResult,Language:string);
 begin
 //Seriously I'm very sorry.
  ADBConnection  := DBConnection;
@@ -46,6 +47,7 @@ begin
  AText          := Text;
  AFieldToSearch := FieldToSearch;
  AFieldToResult := FieldToResult;
+ ALanguage      := Language;
 end;
 
 procedure componentSetupFDC;
@@ -87,11 +89,11 @@ begin
 
  if Qry.IsEmpty then
  begin
-  Result.Text := 'NOT FOUND!';
+  Result.Text := 'NOT FOUND...';
   Result.ResultField := EmptyStr;
  end
  else
- if Qry.RecordCount > 1 then
+ if (Qry.RecordCount > 1) and (AOpenScreen = 'Y') then
  begin
    FrmSearch := TFrmSearch.Create(nil);
    FrmSearch.Table := ATable;
@@ -105,13 +107,14 @@ begin
     Result.Text        := FrmSearch.QrySearch.FieldByName(FieldsToSearch[0]).AsString + ' - ' + FrmSearch.QrySearch.FieldByName(FieldsToSearch[1]).AsString;
     Result.ResultField := FrmSearch.QrySearch.FieldByName(AFieldToResult).AsString;
    end;
+   FreeAndNil(FrmSearch);
  end
  else
  begin
   Result.Text        := Qry.FieldByName(FieldsToSearch[0]).AsString + ' - '+ Qry.FieldByName(FieldsToSearch[1]).AsString;
   Result.ResultField := Qry.FieldByName(AFieldToResult).AsString;
  end;
-
+ FreeAndNil(Qry);
 end;
 
 end.

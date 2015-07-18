@@ -4,13 +4,21 @@ interface
 type
  TStringArray = array of string;
  TSearchResult = record
-  Text:string ; ResultField: string;
+  Text:string ;
+  ResultField: string;
+ end;
+ TErrorMessages = record
+   Connection:string;
+   Table:string;
+   FieldToSearch:string;
+   FieldToResult:string;
  end;
 
  function removeSemicolon(AText, ADelimiter: string):TStringArray;
  function clearInput(AText:string):string;
  function checkForLetters(text: string): Boolean;
  function prepareSearchFields(Text:string): string;
+ function getErrorMessages(Language:String):TErrorMessages;
 
 implementation
 
@@ -58,7 +66,7 @@ begin
  result := False;
  for I := 0 to Pred(Length(text)) do
  begin
-   if text[i] in letters  then
+   if text[i+1] in letters  then
     result := True;
  end;
 end;
@@ -89,5 +97,22 @@ begin
   end;
 end;
 
+function getErrorMessages(Language:String):TErrorMessages;
+begin
+  if Language = 'PT' then
+  begin
+   Result.Connection    := 'Conexão com banco de dados invalida!!' + #13 + 'Por favor verifique o campo ADBConnection';
+   Result.Table         := 'Tabela não configurada!' + #13 + 'Por favor verifique o campo ATable';
+   Result.FieldToSearch := 'Campo para pesquisar não configurado' + #13 + 'Por favor verifique o campo AFieldToSearch';
+   Result.FieldToResult := 'Campo de resultado não configurado' + #13 + 'Por favor verifique o campo AFieldToResult';
+  end
+  else
+  begin
+   Result.Connection    := 'Invalid Configuration: Invalid Database Connection!'+ #13 +'Please check if ADBConnection is filled correctly';
+   Result.Table         := 'Invalid Configuration: Table not Assigned!' + #13 +'Please check if ATable is filled correctly';
+   Result.FieldToSearch := 'Invalid Configuration: Fields to Search not Assigned!' + #13 +'Please check if AFieldToSearch is filled correctly';
+   Result.FieldToResult := 'Invalid Configuration: Field to Result not Assigned!' + #13 +'Please check if AFieldToResult is filled correctly';
+  end;
+end;
 
 end.

@@ -20,9 +20,12 @@ type
     FAFieldToResult: string;
     FOnAfterSearch : TNotifyEvent;
     FAConnectionType: string;
+    FALanguage: string;
+
 
     { Private declarations }
     procedure SetFOnAfterSearch(const Value: TNotifyEvent);
+
 
   protected
     { Protected declarations }
@@ -45,6 +48,7 @@ type
     property AFieldToResult : string read FAFieldToResult write FAFieldToResult;
     property AConnectionType: string read FAConnectionType write FAConnectionType;
     property OnAfterSearch: TNotifyEvent read FOnAfterSearch write SetFOnAfterSearch;
+    property ALanguage : string read FALanguage write FALanguage;
 
   end;
 
@@ -90,28 +94,31 @@ begin
 end;
 
 procedure TEdit2w.validateConfiguration;
+var
+ Errors : uUtil.TErrorMessages;
 begin
+  Errors := getErrorMessages(ALanguage);
   if not Assigned(FADBConnection) then
   begin
-    MessageDlg('Invalid Configuration: Invalid Database Connection!'+ #13 +'Please check if ADBConnection is filled correctly',mtError,[mbOK],0);
+    MessageDlg(Errors.Connection,mtError,[mbOK],0);
     Abort;
   end;
 
   if FATable = EmptyStr then
   begin
-    MessageDlg('Invalid Configuration: Table not Assigned!' + #13 +'Please check if ATable is filled correctly',mtError,[mbOK],0);
+    MessageDlg(Errors.Table,mtError,[mbOK],0);
     Abort;
   end;
 
   if FAFieldToSearch = EmptyStr then
   begin
-    MessageDlg('Invalid Configuration: Fields to Search not Assigned!' + #13 +'Please check if AFieldToSearch is filled correctly',mtError,[mbOK],0);
+    MessageDlg(Errors.FieldToSearch,mtError,[mbOK],0);
     Abort;
   end;
 
   if FAFieldToResult = EmptyStr then
   begin
-    MessageDlg('Invalid Configuration: Fields to Result not Assigned!' + #13 +'Please check if AFieldToResult is filled correctly',mtError,[mbOK],0);
+    MessageDlg(Errors.FieldToResult,mtError,[mbOK],0);
     Abort;
   end;
 end;
@@ -130,11 +137,21 @@ begin
                  FAFilter,
                  FText,
                  FAFieldToSearch,
-                 FAFieldToResult);
+                 FAFieldToResult,
+                 FALanguage);
    componentSetupDBX;
    uResult   := searchDBExpress;
-   Self.Text := uResult.Text;
-   FResult   := uResult.ResultField;
+
+   if (uResult.Text = 'NOT FOUND...') and (ALanguage = 'PT') then
+   begin
+     Self.Text := 'NAO ENCONTRADO...';
+     FResult   := EmptyStr;
+   end
+   else
+   begin
+    Self.Text := uResult.Text;
+    FResult   := uResult.ResultField;
+   end;
 end;
 
 procedure TEdit2w.SearchFDC;
@@ -149,16 +166,26 @@ begin
                  FAFilter,
                  FText,
                  FAFieldToSearch,
-                 FAFieldToResult);
+                 FAFieldToResult,
+                 FALanguage);
    componentSetupFDC;
    uResult   := searchFireDAC;
-   Self.Text := uResult.Text;
-   FResult   := uResult.ResultField;
+
+   if (uResult.Text = 'NOT FOUND...') and (ALanguage = 'PT') then
+   begin
+     Self.Text := 'NAO ENCONTRADO...';
+     FResult   := EmptyStr;
+   end
+   else
+   begin
+    Self.Text := uResult.Text;
+    FResult   := uResult.ResultField;
+   end;
 end;
 
 procedure TEdit2w.KeyPress(var Key: Char);
 begin
-  inherited;
+  inherited KeyPress(Key);
   if key = #13 then
   begin
    validateConfiguration;

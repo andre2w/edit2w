@@ -8,7 +8,7 @@ uses
 
  procedure loadFieldsDBX(DBConnection : TCustomConnection;
                       Table,OpenScreen,FieldsToShow:string;
-                      Filter,Text,FieldToSearch,FieldToResult:string);
+                      Filter,Text,FieldToSearch,FieldToResult,Language:string);
  procedure componentSetupDBX;
  function searchDBExpress:uUtil.TSearchResult;
 
@@ -30,8 +30,9 @@ var
  Qry           : TSQLQuery;
  FieldsToSearch: uUtil.TStringArray;
  Like          : Boolean;
+ ALanguage     : string;
 
-procedure loadFieldsDBX(DBConnection:TCustomConnection;Table,OpenScreen,FieldsToShow,Filter,Text,FieldToSearch,FieldToResult:string);
+procedure loadFieldsDBX(DBConnection:TCustomConnection;Table,OpenScreen,FieldsToShow,Filter,Text,FieldToSearch,FieldToResult,Language:string);
 begin
 //Sorry
  ADBConnection  := DBConnection;
@@ -42,6 +43,7 @@ begin
  AText          := Text;
  AFieldToSearch := FieldToSearch;
  AFieldToResult := FieldToResult;
+ ALanguage      := Language;
 end;
 
 procedure componentSetupDBX;
@@ -60,6 +62,7 @@ begin
  AFieldsToShow := prepareSearchFields(AFieldsToShow);
 
  Query := 'select '+ AFieldsToShow +' from '+ ATable + ' where 1=1';
+
  if AText <> EmptyStr then
  BEGIN
    if like then
@@ -67,6 +70,7 @@ begin
    else
     Query := Query + ' and '+ FieldsToSearch[0]+ ' = ' + AText;
  END;
+
  if AFilter <> EmptyStr then
  begin
    AFilter := clearInput(AFilter);
@@ -83,11 +87,11 @@ begin
 
  if Qry.IsEmpty then
  begin
-  Result.Text := 'NOT FOUND!';
+  Result.Text := 'NOT FOUND...';
   Result.ResultField := EmptyStr;
  end
  else
- if Qry.RecordCount > 1 then
+ if (Qry.RecordCount > 1) and (AOpenScreen = 'Y') then
  begin
    FrmSearch := TFrmSearch.Create(nil);
    FrmSearch.Table := ATable;
@@ -101,12 +105,14 @@ begin
     Result.Text        := FrmSearch.cdsSearch.FieldByName(FieldsToSearch[0]).AsString + ' - ' + FrmSearch.cdsSearch.FieldByName(FieldsToSearch[1]).AsString;
     Result.ResultField := FrmSearch.cdsSearch.FieldByName(AFieldToResult).AsString;
    end;
+   FreeAndNil(FrmSearch);
  end
  else
  begin
   Result.Text        := Qry.FieldByName(FieldsToSearch[0]).AsString + ' - '+ Qry.FieldByName(FieldsToSearch[1]).AsString;
   Result.ResultField :=  Qry.FieldByName(AFieldToResult).AsString;
  end;
+ FreeAndNil(Qry);
 end;
 
 end.
